@@ -1,0 +1,357 @@
+   <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🌍 Dashboard</title>
+   <p> Scoring is using model AI and loading can take a couple of minutes. Score is 0 for neutral <span style="font-size: 0.8em;">(i.e. Impartial)</span> to 3 for emotionally charged. source: free news RSS feeds.</p> 
+   <p>  <span style="font-size: 0.8em;"><a href="https://www.linkedin.com/in/naimabouri">N.B</a></span></p>
+  
+   <style>
+   body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f7fa;
+      max-width: 960px;
+      margin: 40px auto;
+    }
+    h3, h4 {
+      text-align: center;
+      color: #222;
+    }
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background-color: #007acc;
+      color: #fff;
+    }
+    tr.positive { background-color: ##f2f2f2; }
+    tr.negative { background-color: #D3D3D3; }
+    tr.neutral  { background-color: #FCFCF7; }
+    .btn-preview {
+      padding: 4px 8px;
+      font-size: 12px;
+      background-color: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-top: 5px;
+      cursor: pointer;
+    }
+    .btn-preview:hover {
+      background-color: #005c8c;
+    }
+    .preview-row {
+      display: none;
+      background-color: #eef6ff;
+    }
+    .preview-content {
+      padding: 10px;
+    }
+    #countryPie {
+      max-width: 200px;
+      margin: 30px auto;
+      display: block;
+    }
+    #countryDetails {
+      text-align: center;
+      font-size: 10px;
+      margin-top: 5px;
+      color: #333;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!--  <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.1.2/src/wordcloud2.min.js"></script> --> 
+   
+ <!-- Hidden clickable pixel -->
+   <div onclick="alert('🤫 You found the hidden message!')" 
+     style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; opacity: 1; cursor: pointer;">
+   </div>
+</head>
+
+   <body>
+
+  <h3>🌍 News Dashboard</h3>
+   <div id="loading">🔄 Loading data...</div>
+    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; align-items: flex-start;">
+  <div style="text-align: center;">
+    <h4>🌐 Country Mentions (Pie Chart)</h4>
+    <canvas id="countryPie" width="200" height="200"></canvas>
+    <div id="countryDetails"></div>
+  </div>
+
+ <!-- <div style="text-align: center;">
+    <h2 style="margin-top: 0;">🌀 Word Cloud from News</h2>
+    <canvas id="wordCloud" width="200" height="200"></canvas>
+  </div> -->
+       
+</div>
+
+  <button id="toggleSort" class="btn-preview">⬆️ Sort by Score</button>
+  
+
+
+  <table id="newsTable">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Title</th>
+        <th>Score</th>
+        <th>Framing Type</th> 
+    <!--<th>Confidence Rate</th>  -->
+        <th>Reason</th>
+         <th>Date</th>
+        <th>Source</th>
+         <th>Confidence</th>
+      </tr>
+    </thead>
+    <tbody id="newsTableBody">
+      <tr><td colspan="3">Loading data...</td></tr>
+    </tbody>
+  </table>
+   <section style="margin-top: 15px; padding: 10px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+  <h4 style="margin-bottom: 10px;">📘 How framing is measured</h4>
+  <ul style="line-height: 1.6;">
+    <li><strong>LLM GPT-3.5 is asked to: 1/</strong> Identify rhetorical or structural framing choices that may influence how readers interpret events, actors, or responsibility.</li>
+    <li><strong>"Bias framing”</strong> refers to emotionally manipulative or structurally imbalanced language
+<!--- Justifies or obscures violence
+- Minimizes civilian impact
+- Uses vague or euphemistic phrasing to deflect responsibility
+- Erases legal or moral context around acts of war or repression-->.</li>
+
+  <li><strong>It's asked to *not* treat emotionally direct language (e.g., “killed”, “bombed”) as biased if:</strong>:
+- It is attributed to a known actor.
+- It describes verifiable or factual harm.
+- It follows standard journalistic usage.</li>
+
+<li><strong>2/ Use the following to help-detect bias:</strong>
+1. Do not classify emotional or violent language (e.g., “killed”, "famine"...) as bias if:
+It is attributed to a known actor, <strong>or</strong> if It describes verifiable, factual harm, <strong>and</strong> if It follows standard journalistic usage.
+2. In such cases, do not use “Loaded Language” as the framing type unless the wording exaggerates, speculates, or is clearly intended to provoke without factual grounding. 
+3. Instead, focus on thematic framing (e.g., “Humanitarian Crisis”, “Conflict and Consequences”, “Human Impact”).
+</li>
+  </ul>
+   </section>
+  <script>
+    let newsData = [];
+    let ascending = false;
+
+    const countries = [
+      'USA', 'China', 'Iran','Japan', 'Korea', 'Vietnam', 'Togo','Mali','Africa','Congo','Gabon',
+      'France', 'Germany', 'India', 'Brazil', 'Gaza', 'UK', 'Pakistan',
+      'Yemen', 'Syria','US','Algeria','Ireland','Dubai','UAE', 'Spain', 'Italy',
+       'Bulgary', 'Turkey', 'Greece', 'Israel', 'Palestine', 'Ukraine', 'Russia', 'Thailand', 'Cambodia','Colombia','Mexico',
+       'Morocco','Tunisia','Jordan','Lebanon', 'Libya','Egypt','Afghanistan',
+       'Qatar', 'Saudi Arabia','Portugal'
+    ];
+
+    function togglePreview(index) {
+      const row = document.getElementById(`preview-${index}`);
+      if (row) {
+        row.style.display = row.style.display === "table-row" ? "none" : "table-row";
+      }
+    }
+
+    function renderTable(data) {
+      const tableBody = document.getElementById("newsTableBody");
+      tableBody.innerHTML = '';
+
+      data.forEach((item, i) => {
+        const row = document.createElement("tr");
+        const emotionLabel = typeof item.emotion === 'string'? item.emotion.charAt(0).toUpperCase() + item.emotion.slice(1): '—';
+        const reasonlabel = typeof item.reason === 'string'? item.reason.charAt(0).toUpperCase() + item.reason.slice(1): '—'
+         
+        row.innerHTML = `
+          <td>${i + 1}</td>
+          <td>
+            <a href="${item.link}" target="_blank">${item.title}</a><br>
+            <button class="btn-preview" onclick="togglePreview(${i})">🔍 Preview</button>
+          </td>
+          <td>${item.sentimentScore.toFixed(2)}</td>
+          <td>${emotionLabel}</td>
+          <td>${reasonlabel}</td>
+          <td>${new Date(item.pubDate).toLocaleDateString()}</td>
+          <td>${item.source || 'Unknown'}</td>
+          <td>${item.confidence !== undefined ? (item.confidence ).toFixed(0) + '%' : '—'}</td>
+        `;
+
+         
+        const preview = document.createElement("tr");
+        preview.id = `preview-${i}`;
+        preview.className = 'preview-row';
+        preview.innerHTML = `
+          <td colspan="7">
+            <div class="preview-content">
+              <strong>Summary:</strong><br>${item.description || "No description available."}
+            </div>
+          </td>
+        `;
+
+        tableBody.appendChild(row);
+        tableBody.appendChild(preview);
+      });
+    }
+
+    function getCountryStats(data) {
+      const stats = {};
+      data.forEach(item => {
+        countries.forEach(country => {
+          const regex = new RegExp(`\\b${country}\\b`, 'i');
+          if (regex.test(item.title + ' ' + item.description)) {
+            if (!stats[country]) stats[country] = { count: 0, totalScore: 0 };
+            stats[country].count += 1;
+            stats[country].totalScore += item.sentimentScore;
+          }
+        });
+      });
+      return Object.entries(stats)
+        .map(([country, { count, totalScore }]) => ({
+          country,
+          count,
+          avgScore: parseFloat((totalScore / count).toFixed(2))
+        }))
+        .sort((a, b) => b.count - a.count);
+    }
+
+    function renderCountryChart(stats) {
+      const ctx = document.getElementById('countryPie').getContext('2d');
+      const labels = stats.map(s => s.country);
+      const data = stats.map(s => s.count);
+
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Mentions by Country',
+            data
+          }]
+        },
+        options: {
+          onClick: (e, elements) => {
+            if (elements.length > 0) {
+              const index = elements[0].index;
+              const selected = stats[index];
+              document.getElementById('countryDetails').innerHTML = `
+                <strong>${selected.country}</strong><br>
+                Mentions: ${selected.count}<br>
+                Avg Score: ${selected.avgScore > 0 ? '+' : ''}${selected.avgScore.toFixed(2)}
+              `;
+            }
+          }
+        }
+      });
+    }
+
+     /* function generateWordCloud(data) {
+  const wordCounts = {};
+
+  data.forEach(item => {
+    const text = `${item.title} ${item.description}`.toLowerCase();
+    const words = text.match(/\b[a-z]{4,}\b/g); // only words with 4+ letters
+    if (!words) return;
+
+    words.forEach(word => {
+      if (wordCounts[word]) wordCounts[word]++;
+      else wordCounts[word] = 1;
+    });
+  });
+
+  const entries = Object.entries(wordCounts)
+    .filter(([word, count]) => count > 1) // filter out single-use words
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 100); // top 100 terms
+
+  WordCloud(document.getElementById('wordCloud'), {
+    list: entries,
+    gridSize: 8,
+    weightFactor: 3,
+    fontFamily: 'Arial',
+    color: 'random-dark',
+    backgroundColor: '#f4f7fa'
+  });
+}
+*/
+     
+    async function fetchData() {
+     //  document.getElementById("loading").style.display = 'block';
+      const tableBody = document.getElementById("newsTableBody");
+      document.getElementById("loading").style.display = 'block';
+
+      try {
+        
+        const res = await fetch("https://subgrade-1.onrender.com/bbc/rss");
+        newsData = await res.json();
+        renderTable(newsData);
+        const countryStats = getCountryStats(newsData);
+        renderCountryChart(countryStats);
+         // generateWordCloud(newsData);
+
+      } catch (error) {
+        tableBody.innerHTML = '<tr><td colspan="8">❌ Failed to load news data.</td></tr>';
+        console.error("Error:", error);
+      }
+     document.getElementById("loading").style.display = 'none';  
+    }
+
+    document.getElementById("toggleSort").addEventListener("click", () => {
+      ascending = !ascending;
+      const sorted = [...newsData].sort((a, b) =>
+        ascending
+          ? a.sentimentScore - b.sentimentScore
+          : b.sentimentScore - a.sentimentScore
+      );
+      document.getElementById("toggleSort").innerText = ascending
+        ? "⬆️ Sort by Score"
+        : "⬇️ Sort by Score";
+      renderTable(sorted);
+    });
+
+    window.addEventListener("DOMContentLoaded", fetchData);
+  </script>
+   
+ <!-- Click C on the keyboard -->
+<script> 
+document.addEventListener('keydown', e => {
+  if (e.key.toLowerCase() === 'c') {
+    for (let i = 0; i < 30; i++) {
+      let cat = document.createElement('div');
+      cat.innerHTML = '(*‿*)ノ Welcome, this is just a poke...(◕‿◕)つ ';
+      cat.style.position = 'fixed';
+      cat.style.left = Math.random() * window.innerWidth + 'px';
+      cat.style.top = '-50px';
+      cat.style.fontSize = '2em';
+      cat.style.animation = 'fall 3s linear infinite';
+      document.body.appendChild(cat);
+
+      setTimeout(() => cat.remove(), 3000);
+    }
+  }
+});
+</script>
+
+<style>
+@keyframes fall {
+  to { transform: translateY(100vh); opacity: 0; }
+}
+</style>
+
+   <!-- Hidden clickable pixel -->
+<div onclick="alert('🧊 Cool! You found the hidden ice cube!')" 
+     style="position: absolute; bottom: 0; left: 0; width: 10px; height: 10px; cursor: pointer;"></div>
+
+
+</body>
+</html>
