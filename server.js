@@ -1,3 +1,4 @@
+/*
 require('dotenv').config();
 const OpenAI = require('openai');
 const express = require('express');
@@ -5,7 +6,7 @@ const Parser = require('rss-parser');
 const cors = require('cors');
 const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3001;
+//const PORT = process.env.PORT || 3001;
 
 app.use(express.static(path.join(__dirname)));
 app.use(cors({ origin: '*' }));
@@ -188,8 +189,8 @@ Use the following to helpndetect bias:
 
 Provide a score for the level of biased language, the framing type (if any), the confidence % on how confident you are, and a short reason summary of how this framing may influence readers' perception of responsibility and morality.
 Your response must be a JSON object:
-*/ // to here 
-
+to here 
+/*
 function isRecent(pubDate) {
   if (!pubDate) return false;
   const parsedDate = new Date(pubDate);
